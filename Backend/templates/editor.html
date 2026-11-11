@@ -1,0 +1,252 @@
+{% extends "sqladmin/layout.html" %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <div class="page-header d-print-none mb-3">
+        <div class="row align-items-center">
+            <div class="col">
+                <h2 class="page-title">Редактор инструкций</h2>
+                <div class="text-muted mt-1">
+                    Управление инструкциями и их шагами
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">Выбор инструкции</h3>
+        </div>
+
+        <div class="card-body">
+            <form method="GET" action="{{ request.url.path }}">
+                <div class="row align-items-end">
+                    <div class="col-md-8">
+                        <label class="form-label">Инструкция</label>
+
+                        <select
+                            class="form-select"
+                            name="instruction_id"
+                            required
+                        >
+                            <option value="">Выбери инструкцию</option>
+
+                            {% for instruction in instructions %}
+                            <option
+                                value="{{ instruction.id }}"
+                                {% if selected_instruction and selected_instruction.id == instruction.id %}
+                                selected
+                                {% endif %}
+                            >
+                                {{ instruction.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4 mt-2 mt-md-0">
+                        <button class="btn btn-primary w-100" type="submit">
+                            Открыть
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if selected_instruction %}
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">
+                {{ selected_instruction.name }}
+            </h3>
+        </div>
+
+        <div class="card-body">
+
+            <h3 class="mb-3">Шаги инструкции</h3>
+
+            {% if steps %}
+
+                {% for step in steps %}
+
+                <div class="card mb-3">
+                    <div class="card-body">
+
+                        <form method="POST" action="{{ request.url.path }}?instruction_id={{ selected_instruction.id }}">
+
+                            <input
+                                type="hidden"
+                                name="instruction_id"
+                                value="{{ selected_instruction.id }}"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="step_id"
+                                value="{{ step.id }}"
+                            >
+
+                            <input type="hidden" name="action" value="edit">
+
+                            <div class="row align-items-center mb-3">
+                                <div class="col">
+                                    <h4 class="mb-0">
+                                        Шаг №{{ step.number }}
+                                    </h4>
+                                </div>
+
+                                <div class="col-auto">
+                                    <span class="badge bg-blue-lt">
+                                        ID: {{ step.id }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Название шага</label>
+                                <input
+                                    class="form-control"
+                                    type="text"
+                                    name="title"
+                                    value="{{ step.title }}"
+                                    maxlength="50"
+                                    required
+                                >
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Описание / порядок</label>
+                                <input
+                                    class="form-control"
+                                    type="text"
+                                    name="order"
+                                    value="{{ step.order }}"
+                                    maxlength="200"
+                                    required
+                                >
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button
+                                    class="btn btn-primary"
+                                    type="submit"
+                                >
+                                    Сохранить
+                                </button>
+                            </div>
+
+                        </form>
+
+                        <form
+                            method="POST"
+                            action="{{ request.url.path }}?instruction_id={{ selected_instruction.id }}"
+                            class="mt-2"
+                            onsubmit="return confirm('Удалить этот шаг?');"
+                        >
+                            <input
+                                type="hidden"
+                                name="instruction_id"
+                                value="{{ selected_instruction.id }}"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="step_id"
+                                value="{{ step.id }}"
+                            >
+
+                            <input type="hidden" name="action" value="delete">
+
+                            <button class="btn btn-outline-danger" type="submit">
+                                Удалить шаг
+                            </button>
+                        </form>
+
+                    </div>
+                </div>
+
+                {% endfor %}
+
+            {% else %}
+
+                <div class="empty">
+                    <p class="empty-title">Шагов пока нет</p>
+                    <p class="empty-subtitle text-muted">
+                        Добавь первый шаг инструкции ниже.
+                    </p>
+                </div>
+
+            {% endif %}
+
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Добавить шаг</h3>
+        </div>
+
+        <div class="card-body">
+
+            <form method="POST" action="{{ request.url.path }}?instruction_id={{ selected_instruction.id }}">
+
+                <input
+                    type="hidden"
+                    name="instruction_id"
+                    value="{{ selected_instruction.id }}"
+                >
+
+                <input type="hidden" name="action" value="create">
+
+                <div class="mb-3">
+                    <label class="form-label">Название шага</label>
+                    <input
+                        class="form-control"
+                        type="text"
+                        name="title"
+                        maxlength="50"
+                        placeholder="Например: Подготовка оборудования"
+                        required
+                    >
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Описание / порядок</label>
+                    <input
+                        class="form-control"
+                        type="text"
+                        name="order"
+                        maxlength="200"
+                        placeholder="Описание действия"
+                        required
+                    >
+                </div>
+
+                <button class="btn btn-success" type="submit">
+                    + Добавить шаг
+                </button>
+
+                <div class="form-hint mt-2">
+                    Номер следующего шага будет назначен автоматически.
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}

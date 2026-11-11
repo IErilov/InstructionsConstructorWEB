@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: ICW_db
+    restart: always
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: Wanted01
+      POSTGRES_DB: cafe_database
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ICW_network
+
+  backend:
+    build: ./Backend
+    container_name: ICW
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://root:Wanted01@db:5432/cafe_database"
+      ADMIN_PASSWORD: "123"
+      SECRET_KEY: "cd5f04cb57a19c3c7e7bd3078d4c3e3799a532540abedef896d0aa2aec8a1260"
+    depends_on:
+      - db
+    networks:
+      - ICW_network
+
+volumes:
+  postgres_data:
+
+networks:
+  ICW_network:
+    driver: bridge
