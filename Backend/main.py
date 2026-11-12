@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from sqladmin import Admin
 from sqladmin_inline import setup_inline_routes
 from Admin.auth import AdminAuth
@@ -8,6 +8,9 @@ import os
 from db import engine, Base, get_db
 from Admin.editor import InstructionEditor
 from pathlib import Path
+from Core.Analitics.session import get_anonymous_id
+from Core.Analitics.analitics import router as analitics_router
+from Admin.analitics import AnalyticsView
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 BASE_DIR: Path = Path(__file__).resolve().parent
@@ -21,6 +24,8 @@ admin = Admin(
     templates_dir=str(BASE_DIR / "templates")
 )
 
+app.include_router(analitics_router)
+
 @app.on_event("startup")
 async def startup():
     async with engine.begin() as conn:
@@ -28,3 +33,4 @@ async def startup():
 
 admin.add_view(InstructionAdmin)
 admin.add_view(InstructionEditor)
+admin.add_view(AnalyticsView)
