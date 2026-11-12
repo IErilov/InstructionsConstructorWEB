@@ -4,14 +4,10 @@
 
 <div class="container-fluid">
 
-    <div class="page-header d-print-none mb-3">
+    <div class="page-header d-print-none mb-4">
         <div class="row align-items-center">
             <div class="col">
-                <h2 class="page-title">
-                    <i class="fa-solid fa-chart-line me-2"></i>
-                    Аналитика
-                </h2>
-
+                <h2 class="page-title">Аналитика инструкций</h2>
                 <div class="text-muted mt-1">
                     Статистика прохождения инструкций
                 </div>
@@ -19,104 +15,376 @@
         </div>
     </div>
 
-    <div class="card">
+
+    <!-- Выбор инструкции -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="card-title">Выбор инструкции</h3>
+        </div>
+
+        <div class="card-body">
+            <form method="GET" action="{{ request.url.path }}">
+
+                <div class="row align-items-end">
+
+                    <div class="col-md-9">
+
+                        <label class="form-label">
+                            Инструкция
+                        </label>
+
+                        <select
+                            class="form-select"
+                            name="instruction_id"
+                        >
+                            <option value="">
+                                Выберите инструкцию
+                            </option>
+
+                            {% for instruction in instructions %}
+
+                            <option
+                                value="{{ instruction.id }}"
+                                {% if selected_instruction and selected_instruction.id == instruction.id %}
+                                    selected
+                                {% endif %}
+                            >
+                                {{ instruction.name }}
+                            </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="col-md-3 mt-3 mt-md-0">
+
+                        <button
+                            type="submit"
+                            class="btn btn-primary w-100"
+                        >
+                            Показать
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+
+    {% if selected_instruction %}
+
+    <!-- Карточки статистики -->
+    <div class="row row-deck row-cards mb-4">
+
+        <div class="col-sm-6 col-lg-3">
+            <div class="card">
+                <div class="card-body">
+
+                    <div class="subheader">
+                        Пользователей начали
+                    </div>
+
+                    <div class="h1 mb-0">
+                        {{ total_users }}
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+
+        <div class="col-sm-6 col-lg-3">
+            <div class="card">
+                <div class="card-body">
+
+                    <div class="subheader">
+                        Полностью завершили
+                    </div>
+
+                    <div class="h1 mb-0">
+                        {{ completed_users }}
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+
+        <div class="col-sm-6 col-lg-3">
+            <div class="card">
+                <div class="card-body">
+
+                    <div class="subheader">
+                        Завершение инструкции
+                    </div>
+
+                    <div class="h1 mb-0">
+                        {{ instruction_completion_percent }}%
+                    </div>
+
+                    <div class="progress progress-sm mt-3">
+
+                        <div
+                        class="progress-bar"
+                        role="progressbar"
+                        data-width="{{ instruction_completion_percent }}"
+                        ></div>
+
+                    </div>
+                    <div class="subheader">Средний прогресс</div>
+
+                    <div class="h1">{{ average_instruction_progress }}%</div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="col-sm-6 col-lg-3">
+            <div class="card">
+                <div class="card-body">
+
+                    <div class="subheader">
+                        Всего шагов
+                    </div>
+
+                    <div class="h1 mb-0">
+                        {{ total_steps }}
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- График -->
+    <div class="card mb-4">
+
+        <div class="card-header">
+            <h3 class="card-title">
+                Прохождение шагов
+            </h3>
+        </div>
 
         <div class="card-body">
 
-            {% if rows %}
-
-            <div class="table-responsive">
-
-                <table class="table table-vcenter">
-                    <thead>
-                        <tr>
-                            <th>Instruction ID</th>
-                            <th>Step ID</th>
-                            <th>Начали</th>
-                            <th>Завершили</th>
-                            <th>Процент завершения</th>
-                            <th>Статус</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-
-                        {% for row in rows %}
-
-                        <tr>
-
-                            <td>
-                                {{ row.instruction_id }}
-                            </td>
-
-                            <td>
-                                {{ row.step_id }}
-                            </td>
-
-                            <td>
-                                {{ row.started }}
-                            </td>
-
-                            <td>
-                                {{ row.completed }}
-                            </td>
-
-                            <td>
-                                {{ row.completion_rate }}%
-                            </td>
-
-                            <td>
-
-                                {% if row.problematic %}
-
-                                <span class="badge bg-red">
-                                    <i class="fa-solid fa-triangle-exclamation me-1"></i>
-                                    Проблемный шаг
-                                </span>
-
-                                {% else %}
-
-                                <span class="badge bg-green">
-                                    <i class="fa-solid fa-circle-check me-1"></i>
-                                    Хороший результат
-                                </span>
-
-                                {% endif %}
-
-                            </td>
-
-                        </tr>
-
-                        {% endfor %}
-
-                    </tbody>
-                </table>
-
+            <div style="height: 350px;">
+                <canvas id="stepsChart"></canvas>
             </div>
-
-            {% else %}
-
-            <div class="empty">
-
-                <div class="empty-icon">
-                    <i class="fa-solid fa-chart-column fa-3x text-muted"></i>
-                </div>
-
-                <p class="empty-title">
-                    Пока нет данных для аналитики
-                </p>
-
-                <p class="empty-subtitle text-muted">
-                    Данные появятся после начала прохождения инструкций пользователями.
-                </p>
-
-            </div>
-
-            {% endif %}
 
         </div>
 
     </div>
+
+
+    <!-- Таблица -->
+    <div class="card">
+
+        <div class="card-header">
+            <h3 class="card-title">
+                Детальная статистика
+            </h3>
+        </div>
+
+
+        <div class="table-responsive">
+
+            <table class="table table-vcenter card-table">
+
+                <thead>
+                    <tr>
+                        <th>Шаг</th>
+                        <th>Начали</th>
+                        <th>Завершили</th>
+                        <th>Прохождение</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+
+
+                <tbody>
+
+                    {% for step in steps %}
+
+                    <tr>
+
+                        <td>
+                            Шаг {{ loop.index }}
+                        </td>
+
+                        <td>
+                            {{ step.started }}
+                        </td>
+
+                        <td>
+                            {{ step.completed }}
+                        </td>
+
+                        <td style="min-width: 220px;">
+
+                            <div class="d-flex align-items-center">
+
+                                <div class="progress flex-fill me-3">
+
+                                    <div
+                                    class="progress-bar"
+                                    role="progressbar"
+                                    data-width="{{ instruction_completion_rate }}"
+                                    ></div>
+
+                                </div>
+
+                                <strong>
+                                    {{ step.completion_rate }}%
+                                </strong>
+
+                            </div>
+
+                        </td>
+
+
+                        <td>
+
+                            {% if step.problematic %}
+
+                                <span class="badge bg-red-lt">
+                                    Проблемный
+                                </span>
+
+                            {% else %}
+
+                                <span class="badge bg-green-lt">
+                                    Хорошо
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+                    </tr>
+
+                    {% else %}
+
+                    <tr>
+                        <td
+                            colspan="5"
+                            class="text-center text-muted py-4"
+                        >
+                            Нет данных
+                        </td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+
+    <!-- Данные для JavaScript -->
+    <script id="analytics-data" type="application/json">
+        {{ steps | tojson }}
+    </script>
+
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+    <script>
+
+        document.addEventListener("DOMContentLoaded", function () {
+
+            const dataElement = document.getElementById("analytics-data");
+
+            if (!dataElement) {
+                return;
+            }
+
+            const steps = JSON.parse(dataElement.textContent);
+
+            if (!steps || steps.length === 0) {
+                return;
+            }
+
+            const canvas = document.getElementById("stepsChart");
+
+            if (!canvas) {
+                return;
+            }
+
+            const labels = steps.map(function (_, index) {
+                return "Шаг " + (index + 1);
+            });
+
+            const started = steps.map(function (step) {
+                return step.started;
+            });
+
+            const completed = steps.map(function (step) {
+                return step.completed;
+            });
+
+
+            new Chart(canvas, {
+
+                type: "bar",
+
+                data: {
+
+                    labels: labels,
+
+                    datasets: [
+
+                        {
+                            label: "Начали",
+                            data: started
+                        },
+
+                        {
+                            label: "Завершили",
+                            data: completed
+                        }
+
+                    ]
+
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    scales: {
+
+                        y: {
+                            beginAtZero: true
+                        }
+
+                    }
+
+                }
+
+            });
+
+        });
+
+    </script>
+
+
+    {% endif %}
 
 </div>
 

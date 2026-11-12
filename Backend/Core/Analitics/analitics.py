@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from Core.Analitics.session import get_anonymous_id
 from db import get_db as get_session
 from Models.Progress import Progress
+from Models.Step import Step
 
 
 router = APIRouter(
@@ -15,19 +16,25 @@ router = APIRouter(
     tags=["Analytics"],
 )
 
+
 @router.get("/{instruction_id}/analytics")
 async def get_instruction_analytics(
     instruction_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
-    """
-    Возвращает аналитику по каждому шагу инструкции:
-    - сколько пользователей начали шаг
-    - сколько завершили
-    - процент завершения
-    - является ли шаг потенциально проблемным
-    """
+    # Общее количество шагов в инструкции
+    total_steps_stmt = (
+        select(func.count())
+        .select_from(Step)
+        .where(Step.Instruction_id == instruction_id)
+    )
 
+    total_steps_result = await session.execute(total_steps_stmt)
+
+    total_steps = total_steps_result.scalar() or 0
+
+
+    # Статистика по каждому шагу
     stmt = (
         select(
             Progress.step_id,
@@ -45,6 +52,7 @@ async def get_instruction_analytics(
     result = await session.execute(stmt)
     rows = result.all()
 
+
     analytics = []
 
     for row in rows:
@@ -60,13 +68,79 @@ async def get_instruction_analytics(
             "started": row.started,
             "completed": row.completed,
             "completion_rate": round(completion_rate, 2),
-
-            # Можно изменить порог
             "problematic": completion_rate < 60,
         })
 
+
+    # Сколько пользователей начали инструкцию
+    users_stmt = (
+        select(
+            func.count(
+                func.distinct(Progress.anonymous_id)
+            )
+        )
+        .where(
+            Progress.Instruction_id == instruction_id
+        )
+    )
+
+    users_result = await session.execute(users_stmt)
+
+    total_users = users_result.scalar() or 0
+
+
+    # Пользователи, завершившие ВСЕ шаги
+    completed_users = 0
+
+    if total_steps > 0:
+
+        completed_stmt = (
+            select(
+                Progress.anonymous_id
+            )
+            .where(
+                Progress.Instruction_id == instruction_id,
+                Progress.completed_at.is_not(None),
+            )
+            .group_by(
+                Progress.anonymous_id
+            )
+            .having(
+                func.count(
+                    func.distinct(Progress.step_id)
+                ) >= total_steps
+            )
+        )
+
+        completed_result = await session.execute(completed_stmt)
+
+        completed_users = len(
+            completed_result.scalars().all()
+        )
+
+
+    # Процент пользователей, прошедших инструкцию полностью
+    instruction_completion_percent = (
+        completed_users / total_users * 100
+        if total_users > 0
+        else 0
+    )
+
+
     return {
         "instruction_id": str(instruction_id),
+
+        "total_steps": total_steps,
+
+        "total_users": total_users,
+
+        "completed_users": completed_users,
+
+        "instruction_completion_percent": round(
+            instruction_completion_percent,
+            2,
+        ),
+
         "steps": analytics,
     }
 
@@ -77,13 +151,6 @@ async def start_step(
     anonymous_id: UUID = Depends(get_anonymous_id),
     session: AsyncSession = Depends(get_session),
 ):
-    """
-    Создаёт запись о начале прохождения шага.
-
-    Если пользователь уже начинал этот шаг,
-    новая запись не создаётся.
-    """
-
     stmt = select(Progress).where(
         Progress.Instruction_id == instruction_id,
         Progress.step_id == step_id,
@@ -91,32 +158,24 @@ async def start_step(
     )
 
     result = await session.execute(stmt)
-
     progress = result.scalar_one_or_none()
 
     if progress is None:
-
         progress = Progress(
-            instruction_id=instruction_id,
+            Instruction_id=instruction_id,
             step_id=step_id,
             anonymous_id=anonymous_id,
         )
 
         session.add(progress)
-
         await session.commit()
 
-        return {
-            "message": "Step started",
-            "instruction_id": str(instruction_id),
-            "step_id": str(step_id),
-        }
-
     return {
-        "message": "Step already started",
+        "message": "Step started" if progress is not None else "Step already started",
         "instruction_id": str(instruction_id),
         "step_id": str(step_id),
     }
+
 
 @router.post("/{instruction_id}/steps/{step_id}/complete")
 async def complete_step(
@@ -125,10 +184,6 @@ async def complete_step(
     anonymous_id: UUID = Depends(get_anonymous_id),
     session: AsyncSession = Depends(get_session),
 ):
-    """
-    Отмечает шаг как завершённый.
-    """
-
     stmt = select(Progress).where(
         Progress.Instruction_id == instruction_id,
         Progress.step_id == step_id,
@@ -136,7 +191,6 @@ async def complete_step(
     )
 
     result = await session.execute(stmt)
-
     progress = result.scalar_one_or_none()
 
     if progress is None:
@@ -146,9 +200,7 @@ async def complete_step(
         )
 
     if progress.completed_at is None:
-
         progress.completed_at = datetime.now(timezone.utc)
-
         await session.commit()
 
     return {
